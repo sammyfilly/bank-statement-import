@@ -37,16 +37,15 @@ class AccountStatementImport(models.TransientModel):
         # we can provide to match a partner.
         payment_ref = transaction.payee
         if transaction.checknum:
-            payment_ref += " " + transaction.checknum
+            payment_ref += f" {transaction.checknum}"
         if transaction.memo:
-            payment_ref += " : " + transaction.memo
-        vals = {
+            payment_ref += f" : {transaction.memo}"
+        return {
             "date": transaction.date,
             "payment_ref": payment_ref,
             "amount": float(transaction.amount),
             "unique_import_id": transaction.id,
         }
-        return vals
 
     def _parse_file(self, data_file):
         ofx = self._check_ofx(data_file)
@@ -63,8 +62,7 @@ class AccountStatementImport(models.TransientModel):
                     continue
 
                 for transaction in account.statement.transactions:
-                    vals = self._prepare_ofx_transaction_line(transaction)
-                    if vals:
+                    if vals := self._prepare_ofx_transaction_line(transaction):
                         transactions.append(vals)
                         total_amt += vals["amount"]
                 balance = float(account.statement.balance)

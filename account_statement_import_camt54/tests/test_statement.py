@@ -52,8 +52,7 @@ class TestGenerateBankStatement(SavepointCase):
             bank_st_record = self.env["account.bank.statement"].search(
                 [("name", "=", "1234Test/1")], limit=1
             )
-            statement_lines = bank_st_record.line_ids
-            return statement_lines
+            return bank_st_record.line_ids
 
     def test_statement_import(self):
         self.journal.transfer_line = True

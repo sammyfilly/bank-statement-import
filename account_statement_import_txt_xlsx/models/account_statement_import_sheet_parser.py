@@ -64,7 +64,6 @@ class AccountStatementImportSheetParser(models.TransientModel):
 
         lines = list(sorted(lines, key=lambda line: line["timestamp"]))
         first_line = lines[0]
-        last_line = lines[-1]
         data = {
             "date": first_line["timestamp"].date(),
             "name": _("%s: %s")
@@ -77,19 +76,18 @@ class AccountStatementImportSheetParser(models.TransientModel):
         if mapping.balance_column:
             balance_start = first_line["balance"]
             balance_start -= first_line["amount"]
+            last_line = lines[-1]
             balance_end = last_line["balance"]
-            data.update(
-                {
-                    "balance_start": float(balance_start),
-                    "balance_end_real": float(balance_end),
-                }
-            )
+            data |= {
+                "balance_start": float(balance_start),
+                "balance_end_real": float(balance_end),
+            }
         transactions = list(
             itertools.chain.from_iterable(
                 map(lambda line: self._convert_line_to_transactions(line), lines)
             )
         )
-        data.update({"transactions": transactions})
+        data["transactions"] = transactions
 
         return currency_code, account_number, [data]
 
@@ -112,8 +110,7 @@ class AccountStatementImportSheetParser(models.TransientModel):
                 if column_index is not None:
                     column_indexes.append(column_index)
             else:
-                if column_name_or_index:
-                    column_indexes.append(header.index(column_name_or_index))
+                column_indexes.append(header.index(column_name_or_index))
         return column_indexes
 
     def _get_column_names(self):
@@ -137,7 +134,6 @@ class AccountStatementImportSheetParser(models.TransientModel):
         ]
 
     def _parse_lines(self, mapping, data_file, currency_code):
-        columns = dict()
         try:
             workbook = xlrd.open_workbook(
                 file_contents=data_file,
@@ -151,21 +147,21 @@ class AccountStatementImportSheetParser(models.TransientModel):
             )
         except xlrd.XLRDError:
             csv_options = {}
-            csv_delimiter = mapping._get_column_delimiter_character()
-            if csv_delimiter:
+            if csv_delimiter := mapping._get_column_delimiter_character():
                 csv_options["delimiter"] = csv_delimiter
             if mapping.quotechar:
                 csv_options["quotechar"] = mapping.quotechar
             try:
                 decoded_file = data_file.decode(mapping.file_encoding or "utf-8")
             except UnicodeDecodeError:
-                # Try auto guessing the format
-                detected_encoding = chardet.detect(data_file).get("encoding", False)
-                if not detected_encoding:
+                if detected_encoding := chardet.detect(data_file).get(
+                    "encoding", False
+                ):
+                    decoded_file = data_file.decode(detected_encoding)
+                else:
                     raise UserError(
                         _("No valid encoding was found for the attached file")
                     )
-                decoded_file = data_file.decode(detected_encoding)
             csv_or_xlsx = reader(StringIO(decoded_file), **csv_options)
         header = False
         if not mapping.no_header:
@@ -173,23 +169,23 @@ class AccountStatementImportSheetParser(models.TransientModel):
                 header = [str(value) for value in csv_or_xlsx[1].row_values(0)]
             else:
                 header = [value.strip() for value in next(csv_or_xlsx)]
-        for column_name in self._get_column_names():
-            columns[column_name] = self._get_column_indexes(
-                header, column_name, mapping
-            )
+        columns = {
+            column_name: self._get_column_indexes(header, column_name, mapping)
+            for column_name in self._get_column_names()
+        }
         return self._parse_rows(mapping, currency_code, csv_or_xlsx, columns)
 
     def _get_values_from_column(self, values, columns, column_name):
         indexes = columns[column_name]
-        content_l = []
         max_index = len(values) - 1
-        for index in indexes:
-            if isinstance(index, int):
-                if index <= max_index:
-                    content_l.append(values[index])
-            else:
-                if index in values:
-                    content_l.append(values[index])
+        content_l = [
+            values[index]
+            for index in indexes
+            if isinstance(index, int)
+            and index <= max_index
+            or not isinstance(index, int)
+            and index in values
+        ]
         if all(isinstance(content, str) for content in content_l):
             return " ".join(content_l)
         return content_l[0]
@@ -277,11 +273,7 @@ class AccountStatementImportSheetParser(models.TransientModel):
         if isinstance(timestamp, str):
             timestamp = datetime.strptime(timestamp, mapping.timestamp_format)
 
-        if balance:
-            balance = self._parse_decimal(balance, mapping)
-        else:
-            balance = None
-
+        balance = self._parse_decimal(balance, mapping) if balance else None
         if debit_credit:
             amount = amount.copy_abs()
             if debit_credit == mapping.debit_value:
@@ -339,13 +331,12 @@ class AccountStatementImportSheetParser(models.TransientModel):
                     values.append(cell_value)
             else:
                 values = list(row)
-            line = self._parse_row(mapping, currency_code, values, columns)
-            if line:
+            if line := self._parse_row(mapping, currency_code, values, columns):
                 lines.append(line)
         return lines
 
     @api.model
-    def _convert_line_to_transactions(self, line):  # noqa: C901
+    def _convert_line_to_transactions(self, line):    # noqa: C901
         """Hook for extension"""
         timestamp = line["timestamp"]
         amount = line["amount"]
@@ -372,11 +363,10 @@ class AccountStatementImportSheetParser(models.TransientModel):
             original_amount = "0.0"
 
         if original_currency:
-            original_currency = self.env["res.currency"].search(
+            if original_currency := self.env["res.currency"].search(
                 [("name", "=", original_currency)],
                 limit=1,
-            )
-            if original_currency:
+            ):
                 transaction["foreign_currency_id"] = original_currency.id
             if original_amount:
                 transaction["amount_currency"] = str(original_amount)
@@ -386,14 +376,13 @@ class AccountStatementImportSheetParser(models.TransientModel):
                 [("name", "=", currency)],
                 limit=1,
             )
-            if currency:
-                transaction["currency_id"] = currency.id
+        if currency:
+            transaction["currency_id"] = currency.id
 
         if transaction_id:
-            transaction["unique_import_id"] = "{}-{}".format(
-                transaction_id,
-                int(timestamp.timestamp()),
-            )
+            transaction[
+                "unique_import_id"
+            ] = f"{transaction_id}-{int(timestamp.timestamp())}"
 
         transaction["payment_ref"] = description or _("N/A")
         if reference:
@@ -407,7 +396,7 @@ class AccountStatementImportSheetParser(models.TransientModel):
         if transaction_id:
             note += _("Transaction ID: %s; ") % (transaction_id,)
         if note and notes:
-            note = "{}\n{}".format(notes, note.strip())
+            note = f"{notes}\n{note.strip()}"
         elif note:
             note = note.strip()
         elif notes:

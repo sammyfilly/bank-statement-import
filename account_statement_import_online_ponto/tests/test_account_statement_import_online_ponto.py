@@ -9,7 +9,7 @@ from odoo import fields
 from odoo.tests import Form, common
 
 _module_ns = "odoo.addons.account_statement_import_online_ponto"
-_interface_class = _module_ns + ".models.ponto_interface" + ".PontoInterface"
+_interface_class = f"{_module_ns}.models.ponto_interface.PontoInterface"
 
 THREE_TRANSACTIONS = [
     {
@@ -125,7 +125,7 @@ class TestAccountStatementImportOnlinePonto(common.TransactionCase):
         self.provider = self.journal.online_bank_statement_provider_id
 
         self.mock_login = lambda: mock.patch(
-            _interface_class + "._login",
+            f"{_interface_class}._login",
             return_value={
                 "username": "test_user",
                 "password": "very_secret",
@@ -134,12 +134,11 @@ class TestAccountStatementImportOnlinePonto(common.TransactionCase):
             },
         )
         self.mock_set_access_account = lambda: mock.patch(
-            _interface_class + "._set_access_account",
-            return_value=None,
+            f"{_interface_class}._set_access_account", return_value=None
         )
         # return list of transactions on first call, empty list on second call.
         self.mock_get_transactions = lambda: mock.patch(
-            _interface_class + "._get_transactions",
+            f"{_interface_class}._get_transactions",
             side_effect=[
                 THREE_TRANSACTIONS,
                 EMPTY_TRANSACTIONS,

@@ -71,7 +71,5 @@ class OnlineBankStatementProviderDummy(models.Model):
         balance_end = balance
         statement = {}
         if self.env.context.get("balance", True):
-            statement.update(
-                {"balance_start": balance_start, "balance_end_real": balance_end}
-            )
+            statement |= {"balance_start": balance_start, "balance_end_real": balance_end}
         return lines, statement

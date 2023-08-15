@@ -25,15 +25,15 @@ class PontoInterface(models.AbstractModel):
 
     def _login(self, username, password):
         """Ponto login returns an access dictionary for further requests."""
-        url = PONTO_ENDPOINT + "/oauth2/token"
+        url = f"{PONTO_ENDPOINT}/oauth2/token"
         if not (username and password):
             raise UserError(_("Please fill login and key."))
-        login = "%s:%s" % (username, password)
+        login = f"{username}:{password}"
         login = base64.b64encode(login.encode("UTF-8")).decode("UTF-8")
         login_headers = {
             "Content-Type": "application/x-www-form-urlencoded",
             "Accept": "application/json",
-            "Authorization": "Basic %s" % login,
+            "Authorization": f"Basic {login}",
         }
         _logger.debug(_("POST request on %s"), url)
         response = requests.post(
@@ -62,12 +62,12 @@ class PontoInterface(models.AbstractModel):
             access_data.update(updated_data)
         return {
             "Accept": "application/json",
-            "Authorization": "Bearer %s" % access_data["access_token"],
+            "Authorization": f'Bearer {access_data["access_token"]}',
         }
 
     def _set_access_account(self, access_data, account_number):
         """Set ponto account for bank account in access_data."""
-        url = PONTO_ENDPOINT + "/accounts"
+        url = f"{PONTO_ENDPOINT}/accounts"
         _logger.debug(_("GET request on %s"), url)
         response = requests.get(
             url, params={"limit": 100}, headers=self._get_request_headers(access_data)
@@ -95,8 +95,7 @@ class PontoInterface(models.AbstractModel):
         (Ponto id), you will get transactions with an earlier date.
         """
         url = (
-            PONTO_ENDPOINT
-            + "/accounts/"
+            f"{PONTO_ENDPOINT}/accounts/"
             + access_data["ponto_account"]
             + "/transactions"
         )
@@ -104,8 +103,7 @@ class PontoInterface(models.AbstractModel):
         if last_identifier:
             params["after"] = last_identifier
         data = self._get_request(access_data, url, params)
-        transactions = self._get_transactions_from_data(data)
-        return transactions
+        return self._get_transactions_from_data(data)
 
     def _get_transactions_from_data(self, data):
         """Get all transactions that are in the ponto response data."""

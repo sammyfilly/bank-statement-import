@@ -97,9 +97,7 @@ class AccountBankStatementImportPayPalParser(models.TransientModel):
             "bank_name_column",
             "bank_account_column",
         ]
-        data_dict = {}
-        for key in required_list:
-            data_dict[key] = header.index(getattr(mapping, key))
+        data_dict = {key: header.index(getattr(mapping, key)) for key in required_list}
         for key in optional_list:
             try:
                 data_dict[key] = header.index(getattr(mapping, key))
@@ -120,11 +118,14 @@ class AccountBankStatementImportPayPalParser(models.TransientModel):
         lines = []
         for row in csv_data:
             row = list(row)
-            dict_values = {}
-            for key in data_dict:
-                dict_values[key] = (
-                    row[data_dict.get(key)] if data_dict.get(key) is not None else None
+            dict_values = {
+                key: (
+                    row[data_dict.get(key)]
+                    if data_dict.get(key) is not None
+                    else None
                 )
+                for key in data_dict
+            }
             if dict_values.get("currency_column") != currency_code:
                 continue
 
@@ -145,10 +146,7 @@ class AccountBankStatementImportPayPalParser(models.TransientModel):
                 dict_values.get("balance_column"), mapping
             )
             bank = (
-                "{} - {}".format(
-                    dict_values.get("bank_name_column"),
-                    dict_values.get("bank_account_column"),
-                )
+                f'{dict_values.get("bank_name_column")} - {dict_values.get("bank_account_column")}'
                 if dict_values.get("bank_name_column")
                 and dict_values.get("bank_account_column")
                 else None
@@ -185,8 +183,6 @@ class AccountBankStatementImportPayPalParser(models.TransientModel):
 
     @api.model
     def _convert_line_to_transactions(self, line):
-        transactions = []
-
         transaction_id = line["transaction_id"]
         invoice = line["invoice"]
         description = line["description"]
@@ -200,13 +196,13 @@ class AccountBankStatementImportPayPalParser(models.TransientModel):
 
         if invoice:
             invoice = _("Invoice %s") % invoice
-        note = "{} {}".format(description, transaction_id)
+        note = f"{description} {transaction_id}"
         if details:
-            note += ": %s" % details
+            note += f": {details}"
         if payer_email:
-            note += " (%s)" % payer_email
+            note += f" ({payer_email})"
 
-        unique_import_id = "{}-{}".format(transaction_id, int(timestamp.timestamp()))
+        unique_import_id = f"{transaction_id}-{int(timestamp.timestamp())}"
         name = (invoice or details or description or "",)
         transaction = {
             "name": invoice or details or description or "",
@@ -219,8 +215,7 @@ class AccountBankStatementImportPayPalParser(models.TransientModel):
             line.update({"partner_name": payer_name})
         if partner_bank_account:
             line.update({"account_number": partner_bank_account})
-        transactions.append(transaction)
-
+        transactions = [transaction]
         if fee_amount:
             transactions.append(
                 {
@@ -228,7 +223,7 @@ class AccountBankStatementImportPayPalParser(models.TransientModel):
                     "amount": str(fee_amount),
                     "date": timestamp,
                     "partner_name": "PayPal",
-                    "unique_import_id": "%s-FEE" % unique_import_id,
+                    "unique_import_id": f"{unique_import_id}-FEE",
                     "payment_ref": _("Transaction fee for %s") % note,
                 }
             )

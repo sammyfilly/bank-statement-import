@@ -78,16 +78,14 @@ class OnlineBankStatementProviderPonto(models.Model):
         access_data = interface_model._login(self.username, self.password)
         interface_model._set_access_account(access_data, self.account_number)
         latest_identifier = False
-        transactions = interface_model._get_transactions(access_data, latest_identifier)
-        while transactions:
+        while transactions := interface_model._get_transactions(
+            access_data, latest_identifier
+        ):
             lines.extend(transactions)
             latest_identifier = transactions[-1].get("id")
             earliest_datetime = self._ponto_get_transaction_datetime(transactions[-1])
             if earliest_datetime < date_since:
                 break
-            transactions = interface_model._get_transactions(
-                access_data, latest_identifier
-            )
         return lines
 
     def _ponto_get_transaction_vals(self, transaction, sequence):

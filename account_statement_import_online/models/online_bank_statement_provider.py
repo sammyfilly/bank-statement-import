@@ -200,8 +200,7 @@ class OnlineBankStatementProvider(models.Model):
         """Create or update bank statement with the data retrieved from provider."""
         self.ensure_one()
         AccountBankStatement = self.env["account.bank.statement"]
-        is_scheduled = self.env.context.get("scheduled")
-        if is_scheduled:
+        if is_scheduled := self.env.context.get("scheduled"):
             AccountBankStatement = AccountBankStatement.with_context(
                 tracking_disable=True,
             )
@@ -229,8 +228,7 @@ class OnlineBankStatementProvider(models.Model):
         if not statement:
             statement_values.update(
                 {
-                    "name": "%s/%s"
-                    % (self.journal_id.code, statement_date.strftime("%Y-%m-%d")),
+                    "name": f'{self.journal_id.code}/{statement_date.strftime("%Y-%m-%d")}',
                     "journal_id": self.journal_id.id,
                     "date": statement_date,
                 }
@@ -289,8 +287,7 @@ class OnlineBankStatementProvider(models.Model):
             journal._statement_line_import_update_unique_import_id(
                 line_values, self.account_number
             )
-            unique_import_id = line_values.get("unique_import_id")
-            if unique_import_id:
+            if unique_import_id := line_values.get("unique_import_id"):
                 if AccountBankStatementLine.sudo().search(
                     [("unique_import_id", "=", unique_import_id)], limit=1
                 ):
@@ -363,13 +360,11 @@ class OnlineBankStatementProvider(models.Model):
     def _scheduled_pull(self):
         _logger.info("Scheduled pull of online bank statements...")
 
-        providers = self.search(
+        if providers := self.search(
             [("active", "=", True), ("next_run", "<=", fields.Datetime.now())]
-        )
-        if providers:
+        ):
             _logger.info(
-                "Pulling online bank statements of: %s"
-                % ", ".join(providers.mapped("journal_id.name"))
+                f'Pulling online bank statements of: {", ".join(providers.mapped("journal_id.name"))}'
             )
             for provider in providers.with_context(scheduled=True):
                 provider._adjust_schedule()

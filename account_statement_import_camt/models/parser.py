@@ -17,21 +17,16 @@ class CamtParser(models.AbstractModel):
         """Parse element that contains Amount and CreditDebitIndicator."""
         if node is None:
             return 0.0
-        sign = 1
-        amount = 0.0
         sign_node = node.xpath("ns:CdtDbtInd", namespaces={"ns": ns})
         if not sign_node:
             sign_node = node.xpath("../../ns:CdtDbtInd", namespaces={"ns": ns})
-        if sign_node and sign_node[0].text == "DBIT":
-            sign = -1
+        sign = -1 if sign_node and sign_node[0].text == "DBIT" else 1
         amount_node = node.xpath("ns:Amt", namespaces={"ns": ns})
         if not amount_node:
             amount_node = node.xpath(
                 "./ns:AmtDtls/ns:TxAmt/ns:Amt", namespaces={"ns": ns}
             )
-        if amount_node:
-            amount = sign * float(amount_node[0].text)
-        return amount
+        return sign * float(amount_node[0].text) if amount_node else 0.0
 
     def add_value_from_node(self, ns, node, xpath_str, obj, attr_name, join_str=None):
         """Add value to object from first or all nodes found with xpath.
@@ -42,8 +37,7 @@ class CamtParser(models.AbstractModel):
         if not isinstance(xpath_str, (list, tuple)):
             xpath_str = [xpath_str]
         for search_str in xpath_str:
-            found_node = node.xpath(search_str, namespaces={"ns": ns})
-            if found_node:
+            if found_node := node.xpath(search_str, namespaces={"ns": ns}):
                 if isinstance(found_node[0], str):
                     attr_value = found_node[0]
                 elif join_str is None:
@@ -74,7 +68,7 @@ class CamtParser(models.AbstractModel):
             node,
             ["./ns:RmtInf/ns:Ustrd"],
             transaction["narration"],
-            "%s (RmtInf/Ustrd)" % _("Unstructured Reference"),
+            f'{_("Unstructured Reference")} (RmtInf/Ustrd)',
             join_str=" ",
         )
         self.add_value_from_node(
@@ -82,7 +76,7 @@ class CamtParser(models.AbstractModel):
             node,
             ["./ns:RmtInf/ns:Strd/ns:CdtrRefInf/ns:Ref"],
             transaction["narration"],
-            "%s (RmtInf/Strd/CdtrRefInf/Ref)" % _("Structured Reference"),
+            f'{_("Structured Reference")} (RmtInf/Strd/CdtrRefInf/Ref)',
             join_str=" ",
         )
         self.add_value_from_node(
@@ -90,7 +84,7 @@ class CamtParser(models.AbstractModel):
             node,
             ["./ns:AddtlTxInf"],
             transaction["narration"],
-            "%s (AddtlTxInf)" % _("Additional Transaction Information"),
+            f'{_("Additional Transaction Information")} (AddtlTxInf)',
             join_str=" ",
         )
         self.add_value_from_node(
@@ -98,21 +92,21 @@ class CamtParser(models.AbstractModel):
             node,
             ["./ns:RtrInf/ns:Rsn/ns:Cd"],
             transaction["narration"],
-            "%s (RtrInf/Rsn/Cd)" % _("Return Reason Code"),
+            f'{_("Return Reason Code")} (RtrInf/Rsn/Cd)',
         )
         self.add_value_from_node(
             ns,
             node,
             ["./ns:RtrInf/ns:Rsn/ns:Cd"],
             transaction["narration"],
-            "%s (RtrInf/Rsn/Prtry)" % _("Return Reason Code (Proprietary)"),
+            f'{_("Return Reason Code (Proprietary)")} (RtrInf/Rsn/Prtry)',
         )
         self.add_value_from_node(
             ns,
             node,
             ["./ns:RtrInf/ns:AddtlInf"],
             transaction["narration"],
-            "%s (RtrInf/AddtlInf)" % _("Return Reason Additional Information"),
+            f'{_("Return Reason Additional Information")} (RtrInf/AddtlInf)',
             join_str=" ",
         )
         self.add_value_from_node(
@@ -120,49 +114,49 @@ class CamtParser(models.AbstractModel):
             node,
             ["./ns:Refs/ns:MsgId"],
             transaction["narration"],
-            "%s (Refs/MsgId)" % _("Msg Id"),
+            f'{_("Msg Id")} (Refs/MsgId)',
         )
         self.add_value_from_node(
             ns,
             node,
             ["./ns:Refs/ns:AcctSvcrRef"],
             transaction["narration"],
-            "%s (Refs/AcctSvcrRef)" % _("Account Servicer Reference"),
+            f'{_("Account Servicer Reference")} (Refs/AcctSvcrRef)',
         )
         self.add_value_from_node(
             ns,
             node,
             ["./ns:Refs/ns:EndToEndId"],
             transaction["narration"],
-            "%s (Refs/EndToEndId)" % _("End To End Id"),
+            f'{_("End To End Id")} (Refs/EndToEndId)',
         )
         self.add_value_from_node(
             ns,
             node,
             ["./ns:Refs/ns:InstrId"],
             transaction["narration"],
-            "%s (Refs/InstrId)" % _("Instructed Id"),
+            f'{_("Instructed Id")} (Refs/InstrId)',
         )
         self.add_value_from_node(
             ns,
             node,
             ["./ns:Refs/ns:TxId"],
             transaction["narration"],
-            "%s (Refs/TxId)" % _("Transaction Identification"),
+            f'{_("Transaction Identification")} (Refs/TxId)',
         )
         self.add_value_from_node(
             ns,
             node,
             ["./ns:Refs/ns:MntId"],
             transaction["narration"],
-            "%s (Refs/MntId)" % _("Mandate Id"),
+            f'{_("Mandate Id")} (Refs/MntId)',
         )
         self.add_value_from_node(
             ns,
             node,
             ["./ns:Refs/ns:ChqNb"],
             transaction["narration"],
-            "%s (Refs/ChqNb)" % _("Cheque Number"),
+            f'{_("Cheque Number")} (Refs/ChqNb)',
         )
 
         self.add_value_from_node(
@@ -188,17 +182,15 @@ class CamtParser(models.AbstractModel):
         party_type_node = node.xpath("../../ns:CdtDbtInd", namespaces={"ns": ns})
         if party_type_node and party_type_node[0].text != "CRDT":
             party_type = "Cdtr"
-        party_node = node.xpath(
-            "./ns:RltdPties/ns:%s" % party_type, namespaces={"ns": ns}
-        )
-        if party_node:
-            name_node = node.xpath(
+        if party_node := node.xpath(
+            f"./ns:RltdPties/ns:{party_type}", namespaces={"ns": ns}
+        ):
+            if name_node := node.xpath(
                 "./ns:RltdPties/ns:{pt}/ns:Nm | ./ns:RltdPties/ns:{pt}/ns:Pty/ns:Nm".format(
                     pt=party_type
                 ),
                 namespaces={"ns": ns},
-            )
-            if name_node:
+            ):
                 transaction["partner_name"] = name_node[0].text
             else:
                 self.add_value_from_node(
@@ -223,16 +215,15 @@ class CamtParser(models.AbstractModel):
                 "./ns:PstlAdr/ns:Ctry|"
                 "./ns:PstlAdr/ns:AdrLine",
                 transaction["narration"],
-                "%s (PstlAdr)" % _("Postal Address"),
+                f'{_("Postal Address")} (PstlAdr)',
                 join_str=" | ",
             )
-        # Get remote_account from iban or from domestic account:
-        account_node = node.xpath(
-            "./ns:RltdPties/ns:%sAcct/ns:Id" % party_type, namespaces={"ns": ns}
-        )
-        if account_node:
-            iban_node = account_node[0].xpath("./ns:IBAN", namespaces={"ns": ns})
-            if iban_node:
+        if account_node := node.xpath(
+            f"./ns:RltdPties/ns:{party_type}Acct/ns:Id", namespaces={"ns": ns}
+        ):
+            if iban_node := account_node[0].xpath(
+                "./ns:IBAN", namespaces={"ns": ns}
+            ):
                 transaction["account_number"] = iban_node[0].text
             else:
                 self.add_value_from_node(
@@ -292,14 +283,14 @@ class CamtParser(models.AbstractModel):
             node,
             "./ns:AddtlNtryInf",
             transaction["narration"],
-            "%s (AddtlNtryInf)" % _("Additional Entry Information"),
+            f'{_("Additional Entry Information")} (AddtlNtryInf)',
         )
         self.add_value_from_node(
             ns,
             node,
             "./ns:RvslInd",
             transaction["narration"],
-            "%s (RvslInd)" % _("Reversal Indicator"),
+            f'{_("Reversal Indicator")} (RvslInd)',
         )
 
         self.add_value_from_node(
@@ -352,11 +343,8 @@ class CamtParser(models.AbstractModel):
         start_balance_node = None
         end_balance_node = None
         for node_name in ["OPBD", "PRCD", "CLBD", "ITBD"]:
-            code_expr = (
-                './ns:Bal/ns:Tp/ns:CdOrPrtry/ns:Cd[text()="%s"]/../../..' % node_name
-            )
-            balance_node = node.xpath(code_expr, namespaces={"ns": ns})
-            if balance_node:
+            code_expr = f'./ns:Bal/ns:Tp/ns:CdOrPrtry/ns:Cd[text()="{node_name}"]/../../..'
+            if balance_node := node.xpath(code_expr, namespaces={"ns": ns}):
                 if node_name in ["OPBD", "PRCD"]:
                     start_balance_node = balance_node[0]
                 elif node_name == "CLBD":
@@ -413,7 +401,7 @@ class CamtParser(models.AbstractModel):
         # Check whether it is camt at all:
         re_camt = re.compile(r"(^urn:iso:std:iso:20022:tech:xsd:camt." r"|^ISO:camt.)")
         if not re_camt.search(ns):
-            raise ValueError("no camt: " + ns)
+            raise ValueError(f"no camt: {ns}")
         # Check whether version 052 ,053 or 054:
         re_camt_version = re.compile(
             r"(^urn:iso:std:iso:20022:tech:xsd:camt.054."
@@ -424,11 +412,11 @@ class CamtParser(models.AbstractModel):
             r"|^ISO:camt.052.)"
         )
         if not re_camt_version.search(ns):
-            raise ValueError("no camt 052 or 053 or 054: " + ns)
+            raise ValueError(f"no camt 052 or 053 or 054: {ns}")
         # Check GrpHdr element:
         root_0_0 = root[0][0].tag[len(ns) + 2 :]  # strip namespace
         if root_0_0 != "GrpHdr":
-            raise ValueError("expected GrpHdr, got: " + root_0_0)
+            raise ValueError(f"expected GrpHdr, got: {root_0_0}")
 
     def parse(self, data):
         """Parse a camt.052 or camt.053 or camt.054 file."""

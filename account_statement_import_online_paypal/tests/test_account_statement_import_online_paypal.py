@@ -54,12 +54,12 @@ class TestAccountBankAccountStatementImportOnlinePayPal(common.TransactionCase):
         super().setUp()
 
         self.now = fields.Datetime.now()
-        self.now_isoformat = self.now.isoformat() + "+0000"
+        self.now_isoformat = f"{self.now.isoformat()}+0000"
         self.today = datetime(self.now.year, self.now.month, self.now.day)
-        self.today_isoformat = self.today.isoformat() + "+0000"
+        self.today_isoformat = f"{self.today.isoformat()}+0000"
         self.today_timestamp = str(int(self.today.timestamp()))
         self.yesterday = self.today - relativedelta(days=1)
-        self.yesterday_isoformat = self.yesterday.isoformat() + "+0000"
+        self.yesterday_isoformat = f"{self.yesterday.isoformat()}+0000"
         self.yesterday_timestamp = str(int(self.yesterday.timestamp()))
         self.currency_eur = self.env.ref("base.EUR")
         self.currency_usd = self.env.ref("base.USD")
@@ -80,8 +80,7 @@ class TestAccountBankAccountStatementImportOnlinePayPal(common.TransactionCase):
             )
         )
         self.mock_token = lambda: mock.patch(
-            _provider_class + "._paypal_get_token",
-            return_value="--TOKEN--",
+            f"{_provider_class}._paypal_get_token", return_value="--TOKEN--"
         )
 
     def test_good_token(self):
@@ -109,10 +108,7 @@ class TestAccountBankAccountStatementImportOnlinePayPal(common.TransactionCase):
             parse_float=Decimal,
         )
         token = None
-        with mock.patch(
-            _provider_class + "._paypal_retrieve",
-            return_value=mocked_response,
-        ):
+        with mock.patch(f"{_provider_class}._paypal_retrieve", return_value=mocked_response):
             token = provider._paypal_get_token()
         self.assertEqual(token, "---TOKEN---")
 
@@ -140,10 +136,7 @@ class TestAccountBankAccountStatementImportOnlinePayPal(common.TransactionCase):
 }""",
             parse_float=Decimal,
         )
-        with mock.patch(
-            _provider_class + "._paypal_retrieve",
-            return_value=mocked_response,
-        ):
+        with mock.patch(f"{_provider_class}._paypal_retrieve", return_value=mocked_response):
             with self.assertRaises(Exception):
                 provider._paypal_get_token()
 
@@ -171,10 +164,7 @@ class TestAccountBankAccountStatementImportOnlinePayPal(common.TransactionCase):
 }""",
             parse_float=Decimal,
         )
-        with mock.patch(
-            _provider_class + "._paypal_retrieve",
-            return_value=mocked_response,
-        ):
+        with mock.patch(f"{_provider_class}._paypal_retrieve", return_value=mocked_response):
             with self.assertRaises(Exception):
                 provider._paypal_get_token()
 
@@ -201,10 +191,7 @@ class TestAccountBankAccountStatementImportOnlinePayPal(common.TransactionCase):
     }""",
             parse_float=Decimal,
         )
-        with mock.patch(
-            _provider_class + "._paypal_retrieve",
-            return_value=mocked_response,
-        ):
+        with mock.patch(f"{_provider_class}._paypal_retrieve", return_value=mocked_response):
             with self.assertRaises(Exception):
                 provider._paypal_get_token()
 
@@ -260,10 +247,7 @@ class TestAccountBankAccountStatementImportOnlinePayPal(common.TransactionCase):
                 self.now_isoformat,
             )
         )
-        with mock.patch(
-            _provider_class + "._paypal_urlopen",
-            side_effect=[mocked_response_1, mocked_response_2],
-        ), self.mock_token():
+        with (mock.patch(f"{_provider_class}._paypal_urlopen", side_effect=[mocked_response_1, mocked_response_2]), self.mock_token()):
             data = provider.with_context(
                 test_account_statement_import_online_paypal_monday=True,
             )._obtain_statement_data(
@@ -293,10 +277,7 @@ class TestAccountBankAccountStatementImportOnlinePayPal(common.TransactionCase):
 }""",
             throw=True,
         )
-        with mock.patch(
-            _provider_class + "._paypal_urlopen",
-            return_value=mocked_response,
-        ):
+        with mock.patch(f"{_provider_class}._paypal_urlopen", return_value=mocked_response):
             with self.assertRaises(UserError):
                 provider._paypal_retrieve("https://url", "")
 
@@ -320,10 +301,7 @@ class TestAccountBankAccountStatementImportOnlinePayPal(common.TransactionCase):
 }""",
             throw=True,
         )
-        with mock.patch(
-            _provider_class + "._paypal_urlopen",
-            return_value=mocked_response,
-        ):
+        with mock.patch(f"{_provider_class}._paypal_urlopen", return_value=mocked_response):
             with self.assertRaises(UserError):
                 provider._paypal_retrieve("https://url", "")
 
@@ -388,10 +366,7 @@ class TestAccountBankAccountStatementImportOnlinePayPal(common.TransactionCase):
             ),
             parse_float=Decimal,
         )
-        with mock.patch(
-            _provider_class + "._paypal_retrieve",
-            side_effect=[mocked_response_1, mocked_response_2],
-        ), self.mock_token():
+        with (mock.patch(f"{_provider_class}._paypal_retrieve", side_effect=[mocked_response_1, mocked_response_2]), self.mock_token()):
             data = provider._obtain_statement_data(
                 self.now - relativedelta(hours=1),
                 self.now,
@@ -430,10 +405,7 @@ class TestAccountBankAccountStatementImportOnlinePayPal(common.TransactionCase):
             ),
             parse_float=Decimal,
         )
-        with mock.patch(
-            _provider_class + "._paypal_retrieve",
-            return_value=mocked_response,
-        ), self.mock_token():
+        with (mock.patch(f"{_provider_class}._paypal_retrieve", return_value=mocked_response), self.mock_token()):
             with self.assertRaises(Exception):
                 provider._obtain_statement_data(
                     self.now - relativedelta(years=5),
@@ -559,10 +531,7 @@ class TestAccountBankAccountStatementImportOnlinePayPal(common.TransactionCase):
             ),
             parse_float=Decimal,
         )
-        with mock.patch(
-            _provider_class + "._paypal_retrieve",
-            return_value=mocked_response,
-        ), self.mock_token():
+        with (mock.patch(f"{_provider_class}._paypal_retrieve", return_value=mocked_response), self.mock_token()):
             data = provider._obtain_statement_data(
                 self.yesterday,
                 self.today,
@@ -578,7 +547,7 @@ class TestAccountBankAccountStatementImportOnlinePayPal(common.TransactionCase):
                 "ref": "Invoice 1",
                 "payment_ref": "1234567890: Payment for Invoice(s) 1",
                 "partner_name": "Acme, Inc.",
-                "unique_import_id": "1234567890-%s" % (self.yesterday_timestamp,),
+                "unique_import_id": f"1234567890-{self.yesterday_timestamp}",
             },
         )
         self.assertEqual(
@@ -589,7 +558,7 @@ class TestAccountBankAccountStatementImportOnlinePayPal(common.TransactionCase):
                 "ref": "Fee for Invoice 1",
                 "payment_ref": "Transaction fee for 1234567890: Payment for Invoice(s) 1",
                 "partner_name": "PayPal",
-                "unique_import_id": "1234567890-%s-FEE" % (self.yesterday_timestamp,),
+                "unique_import_id": f"1234567890-{self.yesterday_timestamp}-FEE",
             },
         )
         self.assertEqual(data[1], {"balance_start": 0.0, "balance_end_real": 900.0})
@@ -654,7 +623,7 @@ class TestAccountBankAccountStatementImportOnlinePayPal(common.TransactionCase):
                 "ref": "Invoice 1",
                 "payment_ref": "1234567890: Payment for Invoice(s) 1",
                 "partner_name": "Acme, Inc.",
-                "unique_import_id": "1234567890-%s" % (self.today_timestamp,),
+                "unique_import_id": f"1234567890-{self.today_timestamp}",
             },
         )
 
@@ -718,7 +687,7 @@ class TestAccountBankAccountStatementImportOnlinePayPal(common.TransactionCase):
                 "ref": "Invoice 1",
                 "payment_ref": "1234567890: Payment for Invoice(s) 1",
                 "partner_name": "Acme, Inc.",
-                "unique_import_id": "1234567890-%s" % (self.today_timestamp,),
+                "unique_import_id": f"1234567890-{self.today_timestamp}",
             },
         )
 
@@ -782,7 +751,7 @@ class TestAccountBankAccountStatementImportOnlinePayPal(common.TransactionCase):
                 "ref": "Invoice 1",
                 "payment_ref": "1234567890: Payment for Invoice(s) 1",
                 "partner_name": "Acme, Inc.",
-                "unique_import_id": "1234567890-%s" % (self.today_timestamp,),
+                "unique_import_id": f"1234567890-{self.today_timestamp}",
             },
         )
         self.assertEqual(
@@ -793,7 +762,7 @@ class TestAccountBankAccountStatementImportOnlinePayPal(common.TransactionCase):
                 "ref": "Fee for Invoice 1",
                 "payment_ref": "Transaction fee for 1234567890: Payment for Invoice(s) 1",
                 "partner_name": "PayPal",
-                "unique_import_id": "1234567890-%s-FEE" % (self.today_timestamp,),
+                "unique_import_id": f"1234567890-{self.today_timestamp}-FEE",
             },
         )
 
@@ -853,6 +822,6 @@ class TestAccountBankAccountStatementImportOnlinePayPal(common.TransactionCase):
                 "ref": "Invoice 1",
                 "payment_ref": "1234567890: Payment for Invoice(s) 1",
                 "partner_name": "Acme, Inc.",
-                "unique_import_id": "1234567890-%s" % (self.today_timestamp,),
+                "unique_import_id": f"1234567890-{self.today_timestamp}",
             },
         )

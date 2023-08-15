@@ -280,10 +280,10 @@ class OnlineBankStatementProviderPayPal(models.Model):
             invoice = _("Invoice %s") % invoice
         note = transaction_id
         if transaction_subject or transaction_note:
-            note = "{}: {}".format(note, transaction_subject or transaction_note)
+            note = f"{note}: {transaction_subject or transaction_note}"
         if payer_email:
-            note += " (%s)" % payer_email
-        unique_import_id = "{}-{}".format(transaction_id, int(date.timestamp()))
+            note += f" ({payer_email})"
+        unique_import_id = f"{transaction_id}-{int(date.timestamp())}"
         name = (
             invoice
             or transaction_subject
@@ -299,11 +299,10 @@ class OnlineBankStatementProviderPayPal(models.Model):
             "unique_import_id": unique_import_id,
             "raw_data": transaction,
         }
-        payer_full_name = payer_name.get("full_name") or payer_name.get(
+        if payer_full_name := payer_name.get("full_name") or payer_name.get(
             "alternate_full_name"
-        )
-        if payer_full_name:
-            line.update({"partner_name": payer_full_name})
+        ):
+            line["partner_name"] = payer_full_name
         lines = [line]
         if fee_amount:
             lines += [
@@ -312,7 +311,7 @@ class OnlineBankStatementProviderPayPal(models.Model):
                     "amount": str(fee_amount),
                     "date": date,
                     "partner_name": "PayPal",
-                    "unique_import_id": "%s-FEE" % unique_import_id,
+                    "unique_import_id": f"{unique_import_id}-FEE",
                     "payment_ref": _("Transaction fee for %s") % note,
                 }
             ]
@@ -336,16 +335,14 @@ class OnlineBankStatementProviderPayPal(models.Model):
     def _paypal_get_balance(self, token, currency, as_of_timestamp):
         self.ensure_one()
         url = (
-            self.api_base or PAYPAL_API_BASE
-        ) + "/v1/reporting/balances?currency_code={}&as_of_time={}".format(
-            currency,
-            as_of_timestamp.isoformat() + "Z",
+            (self.api_base or PAYPAL_API_BASE)
+            + f"/v1/reporting/balances?currency_code={currency}&as_of_time={as_of_timestamp.isoformat()}Z"
         )
         data = self._paypal_retrieve(url, token)
-        available_balance = data["balances"][0].get("available_balance")
-        if not available_balance:
+        if available_balance := data["balances"][0].get("available_balance"):
+            return Decimal(available_balance["value"])
+        else:
             return Decimal()
-        return Decimal(available_balance["value"])
 
     def _paypal_get_transaction(self, token, transaction_id, timestamp):
         self.ensure_one()
@@ -433,44 +430,37 @@ class OnlineBankStatementProviderPayPal(models.Model):
 
     @api.model
     def _paypal_get_transaction_total_amount(self, transaction):
-        transaction_amount = transaction["transaction_info"].get("transaction_amount")
-        if not transaction_amount:
+        if transaction_amount := transaction["transaction_info"].get(
+            "transaction_amount"
+        ):
+            return Decimal(transaction_amount["value"])
+        else:
             return Decimal()
-        return Decimal(transaction_amount["value"])
 
     @api.model
     def _paypal_get_transaction_fee_amount(self, transaction):
         fee_amount = transaction["transaction_info"].get("fee_amount")
-        if not fee_amount:
-            return Decimal()
-        return Decimal(fee_amount["value"])
+        return Decimal() if not fee_amount else Decimal(fee_amount["value"])
 
     @api.model
     def _paypal_get_transaction_ending_balance(self, transaction):
-        # NOTE: 'available_balance' instead of 'ending_balance' as per CSV file
-        transaction_amount = transaction["transaction_info"].get("available_balance")
-        if not transaction_amount:
+        if transaction_amount := transaction["transaction_info"].get(
+            "available_balance"
+        ):
+            return Decimal(transaction_amount["value"])
+        else:
             return Decimal()
-        return Decimal(transaction_amount["value"])
 
     @api.model
     def _paypal_decode_error(self, content):
         if "name" in content:
             return UserError(
-                "%s: %s"
-                % (
-                    content["name"],
-                    content.get("message", _("Unknown error")),
-                )
+                f'{content["name"]}: {content.get("message", _("Unknown error"))}'
             )
 
         if "error" in content:
             return UserError(
-                "%s: %s"
-                % (
-                    content["error"],
-                    content.get("error_description", _("Unknown error")),
-                )
+                f'{content["error"]}: {content.get("error_description", _("Unknown error"))}'
             )
 
         return None
@@ -507,14 +497,15 @@ class OnlineBankStatementProviderPayPal(models.Model):
         if isinstance(auth, tuple):
             request.add_header(
                 "Authorization",
-                "Basic %s"
-                % str(
-                    b64encode(("{}:{}".format(auth[0], auth[1])).encode("utf-8")),
-                    "utf-8",
+                (
+                    "Basic %s"
+                    % str(
+                        b64encode(f"{auth[0]}:{auth[1]}".encode("utf-8")), "utf-8"
+                    )
                 ),
             )
         elif isinstance(auth, str):
-            request.add_header("Authorization", "Bearer %s" % auth)
+            request.add_header("Authorization", f"Bearer {auth}")
         else:
             raise UserError(_("Unknown authentication specified!"))
         return urllib.request.urlopen(request)

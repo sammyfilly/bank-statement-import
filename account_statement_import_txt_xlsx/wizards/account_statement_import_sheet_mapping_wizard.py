@@ -156,9 +156,7 @@ class AccountStatementImportSheetMappingWizard(models.TransientModel):
     @api.model
     def statement_columns(self):
         header = self.env.context.get("header")
-        if not header:
-            return []
-        return [(x, x) for x in json.loads(header)]
+        return [] if not header else [(x, x) for x in json.loads(header)]
 
     def _get_mapping_values(self):
         """Hook for extension"""
