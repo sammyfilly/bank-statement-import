@@ -59,8 +59,7 @@ class CamtParser(models.AbstractModel):
         )
         if len(isr_number):
             transaction["payment_ref"] = isr_number[0].text
-            partner_ref = self._get_partner_ref(isr_number[0].text)
-            if partner_ref:
+            if partner_ref := self._get_partner_ref(isr_number[0].text):
                 transaction["partner_ref"] = partner_ref
         else:
             xpath_exprs = [
@@ -70,17 +69,15 @@ class CamtParser(models.AbstractModel):
             ]
             payment_ref = transaction["payment_ref"]
             for xpath_expr in xpath_exprs:
-                found_node = node.xpath(xpath_expr, namespaces={"ns": ns})
-                if found_node:
+                if found_node := node.xpath(xpath_expr, namespaces={"ns": ns}):
                     payment_ref = found_node[0].text
                     break
-            trans_id_node = (
+            if trans_id_node := (
                 node.getparent()
                 .getparent()
                 .xpath("./ns:AcctSvcrRef", namespaces={"ns": ns})
-            )
-            if trans_id_node:
-                payment_ref = "{} ({})".format(payment_ref, trans_id_node[0].text)
+            ):
+                payment_ref = f"{payment_ref} ({trans_id_node[0].text})"
             if payment_ref:
                 transaction["payment_ref"] = payment_ref
         # End add esr to the label.

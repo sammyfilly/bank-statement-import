@@ -14,7 +14,7 @@ class AccountStatementImport(models.TransientModel):
         result = self._import_file()
         statements = self.env["account.bank.statement"].browse(result["statement_ids"])
         statements.button_post()
-        action = {
+        return {
             "type": "ir.actions.client",
             "tag": "bank_statement_reconciliation_view",
             "context": {
@@ -23,4 +23,3 @@ class AccountStatementImport(models.TransientModel):
                 "notifications": result["notifications"],
             },
         }
-        return action

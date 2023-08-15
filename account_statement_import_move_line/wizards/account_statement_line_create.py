@@ -35,12 +35,11 @@ class AccountStatementLineCreate(models.TransientModel):
         res = super().default_get(field_list)
         active_model = self.env.context.get("active_model")
         if active_model == "account.bank.statement":
-            statement = (
+            if statement := (
                 self.env[active_model]
                 .browse(self.env.context.get("active_id"))
                 .exists()
-            )
-            if statement:
+            ):
                 res.update(
                     {
                         "target_move": "posted",
@@ -79,13 +78,12 @@ class AccountStatementLineCreate(models.TransientModel):
             domain.append(("date", "<=", self.move_date))
         if self.invoice:
             domain.append(("move_id", "!=", False))
-        paylines = self.env["account.payment"].search(
+        if paylines := self.env["account.payment"].search(
             [
                 ("state", "in", ("draft", "posted", "sent")),
                 ("line_ids", "!=", False),
             ]
-        )
-        if paylines:
+        ):
             move_in_payment_ids = paylines.mapped("line_ids.id")
             domain += [("id", "not in", move_in_payment_ids)]
         return domain
@@ -95,7 +93,7 @@ class AccountStatementLineCreate(models.TransientModel):
         lines = self.env["account.move.line"].search(domain)
         self.move_line_ids = False
         self.move_line_ids = lines
-        action = {
+        return {
             "name": _("Select Move Lines to Create Statement"),
             "type": "ir.actions.act_window",
             "res_model": "account.statement.line.create",
@@ -104,7 +102,6 @@ class AccountStatementLineCreate(models.TransientModel):
             "res_id": self.id,
             "context": self._context,
         }
-        return action
 
     @api.onchange(
         "date_type",
@@ -118,8 +115,7 @@ class AccountStatementLineCreate(models.TransientModel):
     )
     def move_line_filters_change(self):
         domain = self._prepare_move_line_domain()
-        res = {"domain": {"move_line_ids": domain}}
-        return res
+        return {"domain": {"move_line_ids": domain}}
 
     def create_statement_lines(self):
         for rec in self:

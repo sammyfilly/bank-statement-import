@@ -64,14 +64,13 @@ class AccountStatementImport(models.TransientModel):
         return action
 
     def _prepare_create_attachment(self, result):
-        vals = {
+        return {
             "name": self.statement_filename,
             # Attach to first bank statement
             "res_id": result["statement_ids"][0],
             "res_model": "account.bank.statement",
             "datas": self.statement_file,
         }
-        return vals
 
     def import_single_file(self, file_data, result):
         parsing_data = self.with_context(active_id=self.ids[0])._parse_file(file_data)
@@ -82,9 +81,7 @@ class AccountStatementImport(models.TransientModel):
             self.statement_filename,
             len(parsing_data),
         )
-        i = 0
-        for single_statement_data in parsing_data:
-            i += 1
+        for i, single_statement_data in enumerate(parsing_data, start=1):
             logger.debug(
                 "account %d: single_statement_data=%s", i, single_statement_data
             )
@@ -167,21 +164,19 @@ class AccountStatementImport(models.TransientModel):
         if len(stmts_vals) == 0:
             return False
 
-        no_st_line = True
-        for vals in stmts_vals:
-            if vals["transactions"] and len(vals["transactions"]) > 0:
-                no_st_line = False
-                break
-        if no_st_line:
-            return False
-        return True
+        no_st_line = not any(
+            vals["transactions"] and len(vals["transactions"]) > 0
+            for vals in stmts_vals
+        )
+        return not no_st_line
 
     @api.model
     def _match_currency(self, currency_code):
-        currency = self.env["res.currency"].search(
+        if currency := self.env["res.currency"].search(
             [("name", "=ilike", currency_code)], limit=1
-        )
-        if not currency:
+        ):
+            return currency
+        else:
             raise UserError(
                 _(
                     "The bank statement file uses currency '%s' "
@@ -189,7 +184,6 @@ class AccountStatementImport(models.TransientModel):
                 )
                 % currency_code
             )
-        return currency
 
     @api.model
     def _match_journal(self, account_number, currency):
@@ -231,14 +225,17 @@ class AccountStatementImport(models.TransientModel):
                 )
 
             if not journal:
-                bank_accounts = self.env["res.partner.bank"].search(
+                if bank_accounts := self.env["res.partner.bank"].search(
                     [
                         ("partner_id", "=", company.partner_id.id),
-                        ("sanitized_acc_number", "ilike", sanitized_account_number),
+                        (
+                            "sanitized_acc_number",
+                            "ilike",
+                            sanitized_account_number,
+                        ),
                     ],
                     limit=1,
-                )
-                if bank_accounts:
+                ):
                     raise UserError(
                         _(
                             "The bank account with number '%s' exists in Odoo "
@@ -317,7 +314,7 @@ class AccountStatementImport(models.TransientModel):
                 else:
                     st_lines_to_create.append(lvals)
 
-            if len(st_lines_to_create) > 0:
+            if st_lines_to_create:
                 if not st_lines_to_create[0].get("sequence"):
                     for seq, vals in enumerate(st_lines_to_create, start=1):
                         vals["sequence"] = seq
